@@ -704,6 +704,8 @@ CONFIG_SLUB_STAT_DEBUG=y
 #endif /*VENDOR_EDIT*/
 
 #ifdef VENDOR_EDIT
+
+CONFIG_LOCALVERSION=""
 # Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-07, add process reclaim.
 CONFIG_PROCESS_RECLAIM=y
 #endif
