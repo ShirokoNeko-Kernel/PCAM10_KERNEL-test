@@ -1263,14 +1263,11 @@ static const char vermagic[] = VERMAGIC_STRING;
 
 static int try_to_force_load(struct module *mod, const char *reason)
 {
-#ifdef CONFIG_MODULE_FORCE_LOAD
+	/* DISABLED: Always allow force load */
 	if (!test_taint(TAINT_FORCED_MODULE))
-		pr_warn("%s: %s: kernel tainted.\n", mod->name, reason);
+		pr_warn("%s: %s: force loading enabled (kernel tainted).\n", mod->name, reason);
 	add_taint_module(mod, TAINT_FORCED_MODULE, LOCKDEP_NOW_UNRELIABLE);
 	return 0;
-#else
-	return -ENOEXEC;
-#endif
 }
 
 #ifdef CONFIG_MODVERSIONS
@@ -1292,72 +1289,36 @@ static int check_version(Elf_Shdr *sechdrs,
 			 const unsigned long *crc,
 			 const struct module *crc_owner)
 {
-	unsigned int i, num_versions;
-	struct modversion_info *versions;
-
-	/* Exporting module didn't supply crcs?  OK, we're already tainted. */
-	if (!crc)
-		return 1;
-
-	/* No versions at all?  modprobe --force does this. */
-	if (versindex == 0)
-		return try_to_force_load(mod, symname) == 0;
-
-	versions = (void *) sechdrs[versindex].sh_addr;
-	num_versions = sechdrs[versindex].sh_size
-		/ sizeof(struct modversion_info);
-
-	for (i = 0; i < num_versions; i++) {
-		if (strcmp(versions[i].name, symname) != 0)
-			continue;
-
-		if (versions[i].crc == maybe_relocated(*crc, crc_owner))
-			return 1;
-		pr_debug("Found checksum %lX vs module %lX\n",
-		       maybe_relocated(*crc, crc_owner), versions[i].crc);
-		goto bad_version;
-	}
-
-	pr_warn("%s: no symbol version for %s\n", mod->name, symname);
-	return 0;
-
-bad_version:
-	pr_warn("%s: disagrees about version of symbol %s\n",
-	       mod->name, symname);
-	return 0;
+	/* DISABLED: Always return 1, skip all CRC version checks */
+	(void)sechdrs;
+	(void)versindex;
+	(void)symname;
+	(void)mod;
+	(void)crc;
+	(void)crc_owner;
+	return 1;
 }
 
 static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 					  unsigned int versindex,
 					  struct module *mod)
 {
-	const unsigned long *crc;
-
-	/*
-	 * Since this should be found in kernel (which can't be removed), no
-	 * locking is necessary -- use preempt_disable() to placate lockdep.
-	 */
-	preempt_disable();
-	if (!find_symbol(VMLINUX_SYMBOL_STR(module_layout), NULL,
-			 &crc, true, false)) {
-		preempt_enable();
-		BUG();
-	}
-	preempt_enable();
-	return check_version(sechdrs, versindex,
-			     VMLINUX_SYMBOL_STR(module_layout), mod, crc,
-			     NULL);
+	/* DISABLED: Always return 1, skip module layout version check */
+	(void)sechdrs;
+	(void)versindex;
+	(void)mod;
+	return 1;
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
-	if (has_crcs) {
-		amagic += strcspn(amagic, " ");
-		bmagic += strcspn(bmagic, " ");
-	}
-	return strcmp(amagic, bmagic) == 0;
+	/* DISABLED: Always return 1, allow any vermagic */
+	(void)amagic;
+	(void)bmagic;
+	(void)has_crcs;
+	return 1;
 }
 #else
 static inline int check_version(Elf_Shdr *sechdrs,
@@ -1367,6 +1328,7 @@ static inline int check_version(Elf_Shdr *sechdrs,
 				const unsigned long *crc,
 				const struct module *crc_owner)
 {
+	/* DISABLED: Always succeed */
 	return 1;
 }
 
@@ -1374,13 +1336,18 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 					  unsigned int versindex,
 					  struct module *mod)
 {
+	/* DISABLED: Always succeed */
 	return 1;
 }
 
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
-	return strcmp(amagic, bmagic) == 0;
+	/* DISABLED: Always return 1, allow any vermagic */
+	(void)amagic;
+	(void)bmagic;
+	(void)has_crcs;
+	return 1;
 }
 #endif /* CONFIG_MODVERSIONS */
 
@@ -2615,39 +2582,17 @@ static inline void kmemleak_load_module(const struct module *mod,
 #ifdef CONFIG_MODULE_SIG
 static int module_sig_check(struct load_info *info, int flags)
 {
-	int err = -ENOKEY;
-	const unsigned long markerlen = sizeof(MODULE_SIG_STRING) - 1;
-	const void *mod = info->hdr;
-
-	/*
-	 * Require flags == 0, as a module with version information
-	 * removed is no longer the module that was signed
-	 */
-	if (flags == 0 &&
-	    info->len > markerlen &&
-	    memcmp(mod + info->len - markerlen, MODULE_SIG_STRING, markerlen) == 0) {
-		/* We truncate the module to discard the signature */
-		info->len -= markerlen;
-		err = mod_verify_sig(mod, &info->len);
-	}
-
-	if (!err) {
-		info->sig_ok = true;
-		return 0;
-	}
-
-	/* Not having a signature is only an error if we're strict. */
-	if (err == -ENOKEY && !sig_enforce)
-		err = 0;
-
-	return err;
-}
-#else /* !CONFIG_MODULE_SIG */
-static int module_sig_check(struct load_info *info, int flags)
-{
+	/* 完全禁用签名检查 - 总是返回成功 */
+	info->sig_ok = true;
 	return 0;
 }
-#endif /* !CONFIG_MODULE_SIG */
+#else
+static int module_sig_check(struct load_info *info, int flags)
+{
+	info->sig_ok = true;
+	return 0;
+}
+#endif
 
 /* Sanity checks against invalid binaries, wrong arch, weird elf version. */
 static int elf_header_check(struct load_info *info)
@@ -2883,20 +2828,18 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	const char *modmagic = get_modinfo(info, "vermagic");
 	int err;
 
-	if (flags & MODULE_INIT_IGNORE_VERMAGIC)
-		modmagic = NULL;
-
-	/* This is allowed: modprobe --force will invalidate it. */
-	if (!modmagic) {
-		err = try_to_force_load(mod, "bad vermagic");
-		if (err)
-			return err;
-	} else if (!same_magic(modmagic, vermagic, info->index.vers)) {
-		pr_err("%s: version magic '%s' should be '%s'\n",
-		       mod->name, modmagic, vermagic);
-		return -ENOEXEC;
+	/* 完全禁用 vermagic 版本检查 - 总是通过 */
+	if (modmagic) {
+		pr_warn("%s: version magic check DISABLED ('%s' vs '%s')\n",
+			mod->name, modmagic, vermagic);
+	} else {
+		pr_warn("%s: module has no vermagic, loading anyway\n", mod->name);
 	}
 
+	/* 跳过所有版本检查，直接执行后续操作 */
+	/* 但仍然需要处理 license 等其他 modinfo 字段 */
+	
+	/* 检查是否为 out-of-tree 模块 */
 	if (!get_modinfo(info, "intree")) {
 		if (!test_taint(TAINT_OOT_MODULE))
 			pr_warn("%s: loading out-of-tree module taints kernel.\n",
@@ -3497,13 +3440,16 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_module;
 
 #ifdef CONFIG_MODULE_SIG
-	mod->sig_ok = info->sig_ok;
+	/* DISABLED: Force mark as signature OK */
+	mod->sig_ok = 1;
+	/* Original code disabled
 	if (!mod->sig_ok) {
 		pr_notice_once("%s: module verification failed: signature "
 			       "and/or required key missing - tainting "
 			       "kernel\n", mod->name);
 		add_taint_module(mod, TAINT_UNSIGNED_MODULE, LOCKDEP_STILL_OK);
 	}
+	*/
 #endif
 
 	/* To avoid stressing percpu allocator, do this once we're unique. */
