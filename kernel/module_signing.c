@@ -1,4 +1,5 @@
-/* Module signature checker
+/*
+ * Module signature checker (DISABLED)
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -7,6 +8,8 @@
  * modify it under the terms of the GNU General Public Licence
  * as published by the Free Software Foundation; either version
  * 2 of the Licence, or (at your option) any later version.
+ *
+ * MODIFIED: Signature verification completely removed.
  */
 
 #include <linux/kernel.h>
@@ -37,42 +40,13 @@ struct module_signature {
 
 /*
  * Verify the signature on a module.
+ *
+ * This function is intentionally disabled to allow loading of any module
+ * regardless of signature status. No verification is performed.
  */
 int mod_verify_sig(const void *mod, unsigned long *_modlen)
 {
-	struct module_signature ms;
-	size_t modlen = *_modlen, sig_len;
-
-	pr_devel("==>%s(,%zu)\n", __func__, modlen);
-
-	if (modlen <= sizeof(ms))
-		return -EBADMSG;
-
-	memcpy(&ms, mod + (modlen - sizeof(ms)), sizeof(ms));
-	modlen -= sizeof(ms);
-
-	sig_len = be32_to_cpu(ms.sig_len);
-	if (sig_len >= modlen)
-		return -EBADMSG;
-	modlen -= sig_len;
-	*_modlen = modlen;
-
-	if (ms.id_type != PKEY_ID_PKCS7) {
-		pr_err("Module is not signed with expected PKCS#7 message\n");
-		return -ENOPKG;
-	}
-
-	if (ms.algo != 0 ||
-	    ms.hash != 0 ||
-	    ms.signer_len != 0 ||
-	    ms.key_id_len != 0 ||
-	    ms.__pad[0] != 0 ||
-	    ms.__pad[1] != 0 ||
-	    ms.__pad[2] != 0) {
-		pr_err("PKCS#7 signature info has unexpected non-zero params\n");
-		return -EBADMSG;
-	}
-
-	return system_verify_data(mod, modlen, mod + modlen, sig_len,
-				  VERIFYING_MODULE_SIGNATURE);
+	/* Signature verification disabled - always succeed */
+	pr_warn("Module signature verification is DISABLED - any module will be accepted\n");
+	return 0;
 }
