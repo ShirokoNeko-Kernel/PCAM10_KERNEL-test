@@ -1272,6 +1272,7 @@ static int try_to_force_load(struct module *mod, const char *reason)
 
 #ifdef CONFIG_MODVERSIONS
 /* If the arch applies (non-zero) relocations to kernel kcrctab, unapply it. */
+#if 0  /* DISABLED: Function no longer used */
 static unsigned long maybe_relocated(unsigned long crc,
 				     const struct module *crc_owner)
 {
@@ -1281,6 +1282,7 @@ static unsigned long maybe_relocated(unsigned long crc,
 #endif
 	return crc;
 }
+#endif
 
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
@@ -2826,7 +2828,7 @@ static void check_modinfo_retpoline(struct module *mod, struct load_info *info)
 static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 {
 	const char *modmagic = get_modinfo(info, "vermagic");
-	int err;
+	//int err;
 
 	/* 完全禁用 vermagic 版本检查 - 总是通过 */
 	if (modmagic) {
